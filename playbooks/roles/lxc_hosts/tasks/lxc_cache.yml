@@ -23,6 +23,7 @@
   register: cache_download
   retries: 3
   delay: 10
+  when: lxc_container_cache_method == 'tarball'
   until: cache_download|success
   with_items: lxc_container_caches
   tags:
@@ -35,8 +36,20 @@
     dest: "{{ lxc_container_cache_path }}/"
     copy: "no"
   with_items: lxc_container_caches
-  when: cache_download|changed
+  when: cache_download|changed and lxc_container_cache_method == 'tarball'
   tags:
     - lxc-cache
     - lxc-cache-unarchive
 
+- name: Create full cache directory before running debootstrap
+  file:
+    dest: "{{ lxc_container_cache_path }}/{{ item.chroot_path }}"
+    state: directory
+  when: lxc_container_cache_method == 'debootstrap'
+  register: create_cache_directory
+  with_items: lxc_container_caches
+
+- name: Build lxc cache using debootstrap
+  command: "debootstrap --include=python2.7,build-essential --variant=buildd --arch=amd64 trusty {{ lxc_container_cache_path }}/{{ item.chroot_path }} http://mirror.rackspace.com/ubuntu/"
+  with_items: lxc_container_caches
+  when: create_cache_directory|changed and lxc_container_cache_method == 'debootstrap'
