@@ -50,6 +50,6 @@
   with_items: lxc_container_caches
 
 - name: Build lxc cache using debootstrap
-  command: "debootstrap --include=python2.7,build-essential --variant=buildd --arch=amd64 trusty {{ lxc_container_cache_path }}/{{ item.chroot_path }} http://mirror.rackspace.com/ubuntu/"
+  command: "debootstrap --include=python2.7,build-essential,sudo --variant=buildd --arch=amd64 trusty {{ lxc_container_cache_path }}/{{ item.chroot_path }} http://mirror.rackspace.com/ubuntu/"
   with_items: lxc_container_caches
   when: create_cache_directory|changed and lxc_container_cache_method == 'debootstrap'
