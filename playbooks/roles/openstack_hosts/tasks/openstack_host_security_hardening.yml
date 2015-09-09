@@ -1,0 +1,10 @@
+---
+
+- name: Install auditd
+  apt:
+    pkg: auditd
+    state: present
+  when: security_hardening['enable_auditd']
+  tags:
+    - security_hardening
+    - security_hardening_use_auditd

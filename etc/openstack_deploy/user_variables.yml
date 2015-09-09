@@ -154,3 +154,14 @@ ssl_cipher_suite: "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AE
 # If an increased delay for the ssh connection check is desired,
 # uncomment this variable and set it appropriately.
 #ssh_delay: 5
+
+## Security Hardening
+# The following options will provide additional security for your OpenStack
+# deployment hosts.
+#
+security_hardening:
+  # Auditd allows for granular auditing of certain system calls and actions
+  # on the hosts.  This can be helpful when monitoring or troubleshooting
+  # AppArmor policies.  This is disabled by default but it can be enabled by
+  # setting enable_auditd to 'true'.
+  enable_auditd: false
