@@ -40,3 +40,21 @@
     - lxc-cache
     - lxc-cache-unarchive
 
+- name: Create apt repos in the cached container
+  template:
+    src: sources.list.j2
+    dest: "{{ lxc_container_cache_path }}/{{ item.chroot_path }}/etc/apt/sources.list"
+  with_items: lxc_container_caches
+  tags:
+    - lxc-cache
+    - lxc-cache-update
+
+- name: Prepare cached image
+  command: "chroot {{ lxc_container_cache_path }}/{{ item[0].chroot_path }} {{ item[1] }}"
+  with_nested:
+    - lxc_container_caches
+    - lxc_cache_commands
+  when: cache_download|changed
+  tags:
+    - lxc-cache
+    - lxc-cache-update
