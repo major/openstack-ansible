@@ -134,9 +134,11 @@ pushd "playbooks"
   fi
 
   if [ "${DEPLOY_INFRASTRUCTURE}" == "yes" ]; then
-    # Install all of the infra bits
+    # Allow the repo install to happen while the rest of the infrastructure
+    # is being provisioned (saves deployment time) and check on it later.
+    install_bits repo-install.yml &
+
     install_bits memcached-install.yml
-    install_bits repo-install.yml
 
     mkdir -p "${COMMAND_LOGS}/repo_data"
     ansible 'repo_all[0]' -m raw \
@@ -146,6 +148,9 @@ pushd "playbooks"
     install_bits galera-install.yml
     install_bits rabbitmq-install.yml
     install_bits utility-install.yml
+
+    # Ensure that our repo server has finished 
+    wait $(jobs -p)
 
     if [ "${DEPLOY_LOGGING}" == "yes" ]; then
       install_bits rsyslog-install.yml
