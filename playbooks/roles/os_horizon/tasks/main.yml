@@ -27,6 +27,9 @@
     horizon_user_ssl_key is not defined
 
 - include: horizon_ssl_user_provided.yml
+  when: >
+    horizon_user_ssl_cert is defined and
+    horizon_user_ssl_key is defined
 
 - include: horizon_service_setup.yml
 
