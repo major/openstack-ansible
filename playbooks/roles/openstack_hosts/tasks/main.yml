@@ -23,3 +23,4 @@
 - include: openstack_kernel_tuning.yml
 - include: openstack_authorized_keys.yml
 - include: openstack_release.yml
+- include: openstack_chrony.yml

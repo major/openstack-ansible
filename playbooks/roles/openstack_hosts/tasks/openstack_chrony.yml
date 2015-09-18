@@ -1,0 +1,10 @@
+---
+
+- name: Deploy chrony configuration file
+  template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+  tags:
+    - chrony
+  notify:
+    - Restart chrony

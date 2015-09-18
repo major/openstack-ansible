@@ -19,3 +19,9 @@
     state: "restarted"
     pattern: "sysstat"
     enabled: "yes"
+
+- name: Restart chrony
+  service:
+    name: "chrony"
+    state: "restarted"
+    enabled: "yes"

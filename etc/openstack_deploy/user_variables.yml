@@ -154,3 +154,13 @@ ssl_cipher_suite: "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AE
 # If an increased delay for the ssh connection check is desired,
 # uncomment this variable and set it appropriately.
 #ssh_delay: 5
+
+## NTP servers
+# Users can provide their preferred NTP servers here and those servers will be
+# used on physical hosts with chrony.
+#
+# user_ntp_servers:
+#   - 0.europe.pool.ntp.org
+#   - 1.europe.pool.ntp.org
+#   - 2.europe.pool.ntp.org
+#   - 3.europe.pool.ntp.org

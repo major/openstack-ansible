@@ -56,6 +56,7 @@ openstack_host_apt_packages:
   - bridge-utils
   - build-essential
   - cgroup-lite
+  - chrony
   - curl
   - dmeventd
   - dstat
@@ -108,3 +109,12 @@ openstack_kernel_options:
   - { key: 'net.ipv6.route.gc_thresh', value: "{{ set_gc_val | int * 2 }}" }
   - { key: 'net.ipv6.neigh.default.gc_interval', value: 60 }
   - { key: 'net.ipv6.neigh.default.gc_stale_time', value: 120 }
+
+## NTP servers
+# Optionally configure user-provided NTP servers within
+# /etc/openstack_deploy/user_variables.yml
+# user_ntp_servers:
+#   - 0.europe.pool.ntp.org
+#   - 1.europe.pool.ntp.org
+#   - 2.europe.pool.ntp.org
+#   - 3.europe.pool.ntp.org

@@ -133,6 +133,26 @@ suitable short hostname for a compute host might be:
    install without storage hosts, comment out the stanza beginning with
    the *storage\_hosts:* line.
 
+Configuring Network Time Protocol (NTP)
+---------------------------------------
+
+All physical hosts will have `chrony`_ installed to maintain time
+synchronization with NTP servers.  If you prefer to use alternative NTP
+servers that are located closer to your deployment, simply adjust
+``user_ntp_servers`` in ``/etc/openstack_deploy/user_variables.yml``.
+
+For example, users with deployments in Europe may prefer to set the following:
+
+   .. code-block:: yaml
+
+    user_ntp_servers:
+      - 0.europe.pool.ntp.org
+      - 1.europe.pool.ntp.org
+      - 2.europe.pool.ntp.org
+      - 3.europe.pool.ntp.org
+
+.. _chrony: http://chrony.tuxfamily.org/
+
 --------------
 
 .. include:: navigation.txt
