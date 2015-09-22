@@ -38,7 +38,7 @@
 
     - name: Build all known python packages requirements
       shell: |
-        yaprt \
+        yaprt --debug \
               build-wheels \
               --report-file {{ repo_service_home_folder }}/repo/reports/release-{{ openstack_release }}-report.json \
               --storage-pool "{{ repo_service_home_folder }}/repo/pools" \
@@ -61,7 +61,7 @@
 
     - name: Build all known python packages git sources
       shell: |
-        yaprt \
+        yaprt --debug \
               build-wheels \
               --report-file {{ repo_service_home_folder }}/repo/reports/release-{{ openstack_release }}-report.json \
               --storage-pool "{{ repo_service_home_folder }}/repo/pools" \
