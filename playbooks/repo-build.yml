@@ -24,11 +24,12 @@
   tasks:
     - name: Create a build report for all known packages within a release
       shell: |
-        yaprt --quiet \
+        yaprt \
               create-report \
               --report-file {{ repo_service_home_folder }}/repo/reports/release-{{ openstack_release }}-report.json \
               --git-install-repos {{ item['remote_packages'] }} \
-              --packages {{ item['packages'] }}
+              --packages {{ item['packages'] }} \
+              > /tmp/yaprt-build-report.log
       with_py_pkgs: ../
       sudo: yes
       sudo_user: "{{ repo_service_user_name }}"
@@ -37,7 +38,7 @@
 
     - name: Build all known python packages requirements
       shell: |
-        yaprt --quiet \
+        yaprt \
               build-wheels \
               --report-file {{ repo_service_home_folder }}/repo/reports/release-{{ openstack_release }}-report.json \
               --storage-pool "{{ repo_service_home_folder }}/repo/pools" \
@@ -46,40 +47,63 @@
               --pip-index "{{ repo_pip_default_index }}" \
               --pip-extra-index "https://pypi.python.org/simple/" \
               --pip-bulk-operation \
-              --build-output "{{ repo_build_output }}" \
-              --build-dir "{{ repo_build_dir }}" \
+              --build-output "{{ repo_build_output }}/requirements" \
+              --build-dir "{{ repo_build_dir }}/requirements" \
               --build-requirements \
-              --force-clean
+              --force-clean \
+              > /tmp/yaprt-build-requirements.log
       sudo: yes
       sudo_user: "{{ repo_service_user_name }}"
+      async: 1800
+      poll: 0
       tags:
         - repo-build-requirements
 
     - name: Build all known python packages git sources
       shell: |
-        yaprt --quiet \
+        yaprt \
               build-wheels \
               --report-file {{ repo_service_home_folder }}/repo/reports/release-{{ openstack_release }}-report.json \
               --storage-pool "{{ repo_service_home_folder }}/repo/pools" \
               --link-dir "{{ repo_service_home_folder }}/repo/os-releases/{{ openstack_release }}" \
               --pip-extra-link-dirs "{{ repo_service_home_folder }}/repo/links" \
               --pip-no-deps \
-              --build-output "{{ repo_build_output }}" \
-              --build-dir "{{ repo_build_dir }}" \
+              --build-output "{{ repo_build_output }}/git" \
+              --build-dir "{{ repo_build_dir }}"/git \
               --build-branches \
               --build-releases \
-              --force-clean
+              --force-clean \
+              > /tmp/yaprt-build-git.log
       sudo: yes
       sudo_user: "{{ repo_service_user_name }}"
+      async: 1800
+      poll: 0
       tags:
         - repo-build-git-sources
 
+    - name: Wait for yaprt to finish building packages from git
+      wait_for:
+        search_regex: Done
+        path: /tmp/yaprt-build-git.log
+        timeout: 1800
+      tags:
+        - repo-build-git-sources
+
+    - name: Wait for yaprt to finish building package requirements
+      wait_for:
+        search_regex: Done
+        path: /tmp/yaprt-build-requirements.log
+        timeout: 1800
+      tags:
+        - repo-build-requirements
+
     - name: Create html indexes
       shell: |
-        yaprt --quiet \
+        yaprt \
               create-html-indexes \
               --repo-dir "{{ repo_service_home_folder }}/repo" \
-              --dir-exclude "{{ repo_service_home_folder }}/repo/openstackgit"
+              --dir-exclude "{{ repo_service_home_folder }}/repo/openstackgit" \
+              > /tmp/yaprt-html-index.log
       sudo: yes
       sudo_user: "{{ repo_service_user_name }}"
       tags:
