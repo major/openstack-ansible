@@ -46,9 +46,9 @@ export NOVA_FATAL_DEPRECATIONS=${NOVA_FATAL_DEPRECATIONS:-"no"}
 export TEMPEST_FATAL_DEPRECATIONS=${TEMPEST_FATAL_DEPRECATIONS:-"no"}
 
 # Ubuntu Repository Determination (based on existing host OS configuration)
-UBUNTU_RELEASE=$(lsb_release -sc)
-UBUNTU_REPO=${UBUNTU_REPO:-$(awk "/^deb .*ubuntu\/? ${UBUNTU_RELEASE} main/ {print \$2; exit}" /etc/apt/sources.list)}
-UBUNTU_SEC_REPO=${UBUNTU_SEC_REPO:-$(awk "/^deb .*ubuntu\/? ${UBUNTU_RELEASE}-security main/ {print \$2; exit}" /etc/apt/sources.list)}
+# UBUNTU_RELEASE=$(lsb_release -sc)
+# UBUNTU_REPO=${UBUNTU_REPO:-$(awk "/^deb .*ubuntu\/? ${UBUNTU_RELEASE} main/ {print \$2; exit}" /etc/apt/sources.list)}
+# UBUNTU_SEC_REPO=${UBUNTU_SEC_REPO:-$(awk "/^deb .*ubuntu\/? ${UBUNTU_RELEASE}-security main/ {print \$2; exit}" /etc/apt/sources.list)}
 
 
 ## Library Check -------------------------------------------------------------
