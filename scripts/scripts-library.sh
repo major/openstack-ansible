@@ -292,7 +292,7 @@ trap "exit_fail ${LINENO} $?" ERR
 ## Determine OS --------------------------------------------------------------
 # Determine the operating system of the base host
 # Adds the $OS_DISTRO, $OS_VERSION, and $OS_CODENAME bash variables.
-eval $(python os-detection.py)
+eval "$(python os-detection.py)""
 
 ## Pre-flight check ----------------------------------------------------------
 # Make sure only root can run our script
