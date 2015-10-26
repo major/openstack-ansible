@@ -15,4 +15,12 @@
 
 - include: rsyslog_server_pre_install.yml
 - include: rsyslog_server_install.yml
+
+# rsyslog TLS transport
+- include: rsyslog_ssl_key_create.yml
+  when: >
+    rsyslog_user_ssl_cert is not defined or
+    rsyslog_user_ssl_key is not defined
+- include: rsyslog_ssl_user_provided.yml
+
 - include: rsyslog_server_post_install.yml

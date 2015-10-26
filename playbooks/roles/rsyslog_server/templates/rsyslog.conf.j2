@@ -18,6 +18,17 @@ $ModLoad imtcp
 $InputTCPServerRun {{ rsyslog_server_tcp_port }}
 {% endif %}
 
+{% if rsyslog_server_tls_reception == true %}
+# provides TLS syslog reception
+$DefaultNetstreamDriver gtls
+$DefaultNetstreamDriverCAFile {{ rsyslog_ssl_ca_cert }}
+$DefaultNetstreamDriverCertFile {{ rsyslog_ssl_cert }}
+$DefaultNetstreamDriverKeyFile {{ rsyslog_ssl_key }}
+$InputTCPServerStreamDriverMode 1
+$InputTCPServerStreamDriverAuthMode anon
+$InputTCPServerRun {{ rsyslog_server_tls_port }}
+{% endif %}
+
 # Enable non-kernel facility klog messages
 $KLogPermitNonKernelFacility on
 

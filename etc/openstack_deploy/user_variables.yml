@@ -132,6 +132,12 @@ ssl_cipher_suite: "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AE
 #rabbitmq_user_ssl_cert: <path to cert on ansible deployment host>
 #rabbitmq_user_ssl_key: <path to cert on ansible deployment host>
 #rabbitmq_user_ssl_ca_cert: <path to cert on ansible deployment host>
+#
+## SSL: rsyslog
+# By default, the rsyslog server installed by openstack-ansible provides a TLS
+# listener on port 10514. Set the 'rsyslog_server_tls_reception' variable below
+# to 'false' to disable the TLS listener.
+#rsyslog_server_tls_reception: true
 
 ## Additional pinning generator that will allow for more packages to be pinned as you see fit.
 ## All pins allow for package and versions to be defined. Be careful using this as versions

@@ -16,6 +16,7 @@ Chapter 4. Deployment configuration
    configure-haproxy.rst
    configure-horizon.rst
    configure-rabbitmq.rst
+   configure-rsyslog.rst
    configure-ceilometer.rst
    configure-aodh.rst
    configure-keystone.rst
