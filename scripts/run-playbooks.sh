@@ -51,6 +51,11 @@ EOF
 # Initiate the deployment
 pushd "playbooks"
   if [ "${DEPLOY_HOST}" == "yes" ]; then
+
+    if [ "${SECURE_HOSTS_WITH_OSAS}" == "yes" ]; then
+        install_bits os-security.yml --skip-tags V-38497
+    fi
+
     # Install all host bits
     install_bits openstack-hosts-setup.yml
     install_bits lxc-hosts-setup.yml

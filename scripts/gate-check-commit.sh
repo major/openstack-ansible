@@ -37,6 +37,8 @@ export MAX_RETRIES=${MAX_RETRIES:-"2"}
 export RUN_TEMPEST_OPTS=${RUN_TEMPEST_OPTS:-'--serial'}
 export TESTR_OPTS=${TESTR_OPTS:-''}
 
+# Should we secure the hosts with openstack-ansible-security?
+export SECURE_HOSTS_WITH_OSAS=${SECURE_HOSTS_WITH_OSAS:-"yes"}
 ## Functions -----------------------------------------------------------------
 info_block "Checking for required libraries." 2> /dev/null || source $(dirname ${0})/scripts-library.sh
 
