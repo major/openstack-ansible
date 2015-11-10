@@ -20,6 +20,7 @@
     clone: yes
     update: yes
     version: "{{ item['version'] }}"
+    depth: 1
   with_items: local_packages.results.0.item.remote_package_parts
   tags:
     - repo-clone-repos
