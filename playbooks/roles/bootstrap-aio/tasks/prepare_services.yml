@@ -1,0 +1,99 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Set region name for deployment
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "service_region: {{ service_region }}"
+
+- name: Set virtualization type for nova
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "nova_virt_type: {{ nova_virt_type }}"
+
+- name: Set network for tempest
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "tempest_public_subnet_cidr: {{ tempest_public_subnet_cidr }}"
+
+- name: Minimize galera cache size
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "{{ item }}"
+  with_items:
+    - "galera_innodb_buffer_pool_size: 512M"
+    - "galera_innodb_log_buffer_size: 32M"
+    - "galera_wsrep_provider_options: [{ option: \"gcache.size\", value: \"32M\" }]"
+
+- name: Set the required kernel
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "required_kernel: {{ ansible_kernel }}"
+
+- name: Use the same Ubuntu repository in the containers as the host
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "lxc_container_template_main_apt_repo: {{ ubuntu_repo }}"
+
+- name: Use the same Ubuntu security repository in the containers as the host
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "lxc_container_template_security_apt_repo: {{ ubuntu_security_repo }}"
+
+- name: Configure the running neutron workers
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "{{ item }}"
+  with_items:
+    - "neutron_api_workers: 0"
+    - "neutron_rpc_workers: 0"
+    - "neutron_metadata_workers: 1"
+
+- name: Configure glance's default store (if swift is installed)
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "glance_default_store: swift"
+  when: deploy_swift | bool
+
+- name: Configure cinder's backup storage (if swift is installed)
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "cinder_service_backup_program_enabled: true"
+  when: deploy_swift | bool
+
+- name: Configure tempest's backup storage (if swift is installed)
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "tempest_volume_backup_enabled: true"
+  when: deploy_swift | bool
+
+- name: Configure a custom RabbitMQ package URL (if specified)
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "rabbitmq_package_url: {{ rabbitmq_package_url }}"
+  when: rabbitmq_package_url is defined
+
+- name: Configure fatal deprecations (if specified)
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    line: "{{ item.service }}_fatal_deprecations: {{ item.value }}"
+  with_items:
+    - { service: "cinder", value: "{{ cinder_fatal_deprecations | bool }}" }
+    - { service: "glance", value: "{{ glance_fatal_deprecations | bool }}" }
+    - { service: "heat", value: "{{ heat_fatal_deprecations | bool }}" }
+    - { service: "keystone", value: "{{ keystone_fatal_deprecations | bool }}" }
+    - { service: "neutron", value: "{{ neutron_fatal_deprecations | bool }}" }
+    - { service: "nova", value: "{{ nova_fatal_deprecations | bool }}" }
+    - { service: "tempest", value: "{{ tempest_fatal_deprecations | bool }}" }

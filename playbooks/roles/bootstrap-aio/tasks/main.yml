@@ -1,0 +1,375 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# We will look for the most specific variable files first and eventually
+# end up with the least-specific files.
+- name: Gather variables for each operating system
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_distribution | lower }}-{{ ansible_distribution_version | lower }}.yml"
+    - "{{ ansible_distribution | lower }}.yml"
+    - "{{ ansible_os_family | lower }}.yml"
+  tags:
+    - always
+
+- name: Check to see if we're running a gate check job
+  stat:
+    path: /etc/nodepool/provider
+  register: gate_job_check
+
+- name: Set a fact if we're in a gate check job
+  set_fact:
+    gate_job: "{{ gate_job_check.stat.exists | bool }}"
+
+- name: Dump vars
+  debug:
+    msg: "{{ hostvars[inventory_hostname] }}"
+
+- name: Check for VXLAN support in the running kernel
+  command: modprobe vxlan
+  register: vxlan_check
+  changed_when: False
+  failed_when: vxlan_check.rc != 0
+
+- name: Use Google's DNS during the deployment for consistency
+  lineinfile:
+    dest: /etc/resolv.conf
+    line: "nameserver {{ item }}"
+    state: present
+  with_items:
+    - '8.8.8.8'
+    - '8.8.4.4'
+
+- include: configure_apt.yml
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Install basic packages
+  action: "{{ ansible_pkg_mgr }} name={{ item }} state=present"
+  with_items: aio_base_packages
+
+- name: Flush iptables
+  command: "{{ item }}"
+  with_items:
+    - iptables -F
+    - iptables -X
+    - iptables -t nat -F
+    - iptables -t nat -X
+    - iptables -t mangle -F
+    - iptables -t mangle -X
+    - iptables -P INPUT ACCEPT
+    - iptables -P FORWARD ACCEPT
+    - iptables -P OUTPUT ACCEPT
+  when: flush_iptables | bool
+
+- name: Ensure root logins are allowed for sshd
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^PermitRootLogin"
+    line: "PermitRootLogin yes"
+    state: present
+
+# This originally used a handler, but the ssh daemon must be up before this
+# playbook finishes running. That's the reason why there is a forced ssh
+# daemon restart here.
+- name: Restart sshd
+  service:
+    name: "{{ ssh_service_name }}"
+    state: restarted
+
+- name: Ensure /opt exists
+  file:
+    path: /opt
+    state: directory
+
+- name: Ensure ~/.pip doesn't exist
+  file:
+    path: "{{ ansible_env['HOME'] }}/.pip"
+    state: absent
+
+- name: Download pip installation script
+  get_url:
+    url: https://bootstrap.pypa.io/get-pip.py
+    dest: /tmp/get-pip.py
+
+- name: Run pip installation script
+  command: "{{ python_executable }} /tmp/get-pip.py"
+
+# The 'configure_diskspace' function from the original bash script would
+# have gone here. Still trying to figure out how to add it within Ansible.
+
+- name: Ensure /etc/rc.local exists
+  file:
+    path: /etc/rc.local
+    state: touch
+    mode: "u+x"
+
+- name: Ensure root has a .ssh directory
+  file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: 0700
+
+- name: Remove existing ssh keys if they're present
+  file:
+    path: "/root/.ssh/{{ item }}"
+    state: absent
+  with_items:
+    - 'id_rsa'
+    - 'id_rsa.pub'
+
+- name: Create ssh key pair for root
+  user:
+    name: root
+    generate_ssh_key: yes
+    ssh_key_bits: 2048
+    ssh_key_file: /root/.ssh/id_rsa
+
+- name: Ensure root's new public ssh key is in authorized_keys
+  authorized_key:
+    user: root
+    key: "{{ lookup('file', '/root/.ssh/id_rsa.pub') }}"
+    manage_dir: no
+
+- include: prepare_swap.yml
+
+## Extra Storage -------------------------------------------------------------
+# Some clouds, like HP's, offer up an additional disk that is much larger than
+# the root volume. We need to provision that storage so we can use it for
+# containers, cinder, and swift. Without this, we will run out of disk space
+# in HP's cloud.
+- name: Check to see if a volume group for LXC already exists
+  command: vgs lxc
+  failed_when: false
+  register: lxc_vg_check
+  tags:
+    - add_storage
+
+- name: Check for an additional block storage device
+  set_fact:
+    block_device_exists: true
+  when: "ansible_devices['{{ storage_dev }}'] is defined"
+  tags:
+    - add_storage
+
+- include: add_storage.yml
+  when: lxc_vg_check.rc != 0 and block_device_exists is defined and block_device_exists | bool
+  tags:
+    - add_storage
+
+## Cinder --------------------------------------------------------------------
+# If the deployer hasn't configured a volume group called 'cinder-volumes',
+# a loopback device will be created for basic cinder usage.
+- name: Check for cinder-volumes volume group
+  command: vgs cinder-volumes
+  changed_when: False
+  failed_when: False
+  register: cinder_vg_check
+  tags:
+    - cinder
+
+- include: prepare_cinder_loopback.yml
+  when: deploy_openstack | bool and cinder_vg_check.rc != 0
+  tags:
+    - cinder
+
+## Swift ---------------------------------------------------------------------
+# Look for any existing swift mounts and create loopback devices if no swift
+# mounts are found.
+- name: Check for existing swift mounts
+  command: grep swift /proc/mounts
+  failed_when: false
+  register: swift_mount_check
+  tags:
+    - swift
+
+- include: prepare_swift_loopback.yml
+  when: deploy_swift | bool and swift_mount_check.rc != 0
+  tags:
+    - swift
+
+## Networking ----------------------------------------------------------------
+# Ensure that all of our AIO bridges are present and configured properly.
+- include: prepare_networking.yml
+
+## Ansible configuration -----------------------------------------------------
+- name: Create /etc/openstack_deploy and subdirectories
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - /etc/openstack_deploy/
+    - /etc/openstack_deploy/conf.d/
+
+- name: Copy openstack_deploy configuration files from the root
+  synchronize:
+    src: ../etc/openstack_deploy/
+    dest: /etc/openstack_deploy/
+    recursive: yes
+
+- name: Remove .aio from files in /etc/openstack_deploy
+  shell: "find /etc/openstack_deploy/ -name *.aio | sed -e 'p;s/.aio//' | xargs -n2 mv -v"
+
+- name: Get the DNS servers in use on the host
+  shell: grep nameserver /etc/resolv.conf
+  register: nameservers
+
+- name: Ensure the LXC containers use the same DNS resolvers
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    regexp: "^(#)?lxc_cache_resolvers:"
+    line: "lxc_cache_resolvers: [\"{{ nameservers.stdout_lines | join('\",\"') }}\"]"
+
+## Tempest -------------------------------------------------------------------
+- name: Ensure tempest is skipped for OpenStack services if we're not deploying them
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    regexp: "^(#)?tempest_service_available_{{ item }}"
+    line: "tempest_service_available_{{ item }}: False"
+  with_items:
+    - cinder
+    - glance
+    - heat
+    - horizon
+    - neutron
+    - nova
+  when: not deploy_openstack | bool
+  tags:
+    - tempest
+
+- name: Don't deploy tempest for swift unless swift is being installed
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    regexp: "^(#)?tempest_service_available_swift"
+    line: "tempest_service_available_swift: False"
+  when: not deploy_swift | bool
+  tags:
+    - tempest
+
+## Secrets -------------------------------------------------------------------
+- name: Generate passwords for the user_secrets.yml file
+  shell: ../scripts/pw-token-gen.py --file /etc/openstack_deploy/user_secrets.yml
+  tags:
+    - generate_secrets
+
+- name: Generate keystone admin password (if password not provided)
+  shell: "tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 32"
+  register: generated_password
+  when: admin_password is not defined
+  tags:
+    - generate_secrets
+
+- name: Set admin_password fact if it doesn't exist
+  set_fact:
+    admin_password: "{{ generated_password.stdout }}"
+  tags:
+    - generate_secrets
+
+- name: Set keystone admin password
+  lineinfile:
+    dest: /etc/openstack_deploy/user_secrets.yml
+    regexp: "^(#)?keystone_auth_admin_password:"
+    line: "keystone_auth_admin_password: {{ admin_password }}"
+  tags:
+    - generate_secrets
+
+## Load balancer -------------------------------------------------------------
+- name: Determine host's public IP address (if not provided)
+  set_fact:
+    public_address: "{{ ansible_default_ipv4['address'] }}"
+  when: public_address is not defined
+  tags:
+    - configure_lb
+
+- name: Set external load balancer VIP address
+  lineinfile:
+    dest: /etc/openstack_deploy/openstack_user_config.yml
+    regexp: "^(.*external_lb_vip_address:)"
+    line: '\1 {{ public_address }}'
+    backrefs: yes
+  tags:
+    - configure_lb
+
+## Container counts ----------------------------------------------------------
+- name: Reduce container counts if we're in a gate check job
+  set_fact:
+    galera_container: "{{ gate_galera_container }}"
+    horizon_container: "{{ gate_horizon_container }}"
+    keystone_container: "{{ gate_keystone_container }}"
+    rabbit_mq_container: "{{ gate_rabbit_mq_container }}"
+    repo_container: "{{ gate_repo_container }}"
+  when: gate_job | bool
+
+- name: Adjust the number of galera containers to deploy (if needed)
+  lineinfile:
+    dest: /etc/openstack_deploy/openstack_user_config.yml
+    regexp: "^(.*galera_container:)"
+    line: '\1 {{ galera_container }}'
+    backrefs: yes
+  when: galera_container is defined
+  tags:
+    - limit_containers
+
+- name: Adjust the number of horizon containers to deploy (if needed)
+  lineinfile:
+    dest: /etc/openstack_deploy/openstack_user_config.yml
+    regexp: "^(.*horizon_container:)"
+    line: '\1 {{ horizon_container }}'
+    backrefs: yes
+  when: horizon_container is defined
+  tags:
+    - limit_containers
+
+- name: Adjust the number of keystone containers to deploy (if needed)
+  lineinfile:
+    dest: /etc/openstack_deploy/openstack_user_config.yml
+    regexp: "^(.*keystone_container:)"
+    line: '\1 {{ keystone_container }}'
+    backrefs: yes
+  when: keystone_container is defined
+  tags:
+    - limit_containers
+
+- name: Adjust the number of RabbitMQ containers to deploy (if needed)
+  lineinfile:
+    dest: /etc/openstack_deploy/openstack_user_config.yml
+    regexp: "^(.*rabbit_mq_container:)"
+    line: '\1 {{ rabbit_mq_container }}'
+    backrefs: yes
+  when: rabbit_mq_container is defined
+  tags:
+    - limit_containers
+
+- name: Adjust the number of repo containers to deploy (if needed)
+  lineinfile:
+    dest: /etc/openstack_deploy/openstack_user_config.yml
+    regexp: "^(.*repo_container:)"
+    line: '\1 {{ repo_container }}'
+    backrefs: yes
+  when: repo_container is defined
+  tags:
+    - limit_containers
+
+## Ceilometer ----------------------------------------------------------------
+# Configure ceilometer for deployment if requested by the deployer.
+- include: prepare_ceilometer.yml
+  tags: prepare_ceilometer
+  when: deploy_ceilometer | bool
+
+## Final service configuration -----------------------------------------------
+- include: prepare_services.yml
+  tags:
+    - prepare_services

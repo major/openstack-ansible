@@ -17,7 +17,6 @@
 ## Shell Opts ----------------------------------------------------------------
 set -e -u -x
 
-
 ## Vars ----------------------------------------------------------------------
 DEFAULT_PASSWORD=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | head -c 32)
 export BOOTSTRAP_AIO="yes"
@@ -57,6 +56,16 @@ info_block "Checking for required libraries." 2> /dev/null ||
     source $(dirname ${0})/scripts-library.sh ||
     source scripts/scripts-library.sh
 
+
+## New Ansible AIO Bootstrap -------------------------------------------------
+export USE_ANSIBLE_AIO=${USE_ANSIBLE_AIO:-"yes"}
+if [ "${USE_ANSIBLE_AIO}" == "yes" ]; then
+  echo "Using the new Ansible AIO bootstrap playbook..."
+  pushd playbooks
+    ansible-playbook -i "localhost ansible-connection=local," bootstrap-aio.yml
+  popd
+  return
+fi
 
 ## Main ----------------------------------------------------------------------
 

@@ -1,0 +1,55 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Ensure that /etc/network/interfaces.d/ exists
+  file:
+    path: /etc/network/interfaces.d/
+    state: directory
+
+- name: Copy AIO network configuration
+  template:
+    src: aio_interfaces.cfg.j2
+    dest: /etc/network/interfaces.d/aio_interfaces.cfg
+
+- name: Ensure our interfaces.d configuration files are loaded automatically
+  lineinfile:
+    dest: /etc/network/interfaces
+    line: "source /etc/network/interfaces.d/*.cfg"
+
+- name: Stop ssh daemon prior to bringing down/up bridges
+  service:
+    name: "{{ ssh_service_name }}"
+    state: stopped
+
+- name: Ensure AIO network interfaces are down
+  command: "ifdown {{ item }}"
+  with_items:
+    - br-mgmt
+    - br-storage
+    - br-vlan
+    - br-vxlan
+
+- name: Ensure AIO network interfaces are up
+  command: "ifup {{ item }}"
+  with_items:
+    - br-mgmt
+    - br-storage
+    - br-vlan
+    - br-vxlan
+
+- name: Start ssh daemon now that the bridges are configured
+  service:
+    name: "{{ ssh_service_name }}"
+    state: started

@@ -1,0 +1,84 @@
+
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Unmount extra storage volume if it is already mounted
+  mount:
+    name: /mnt
+    src: "/dev/{{ storage_dev }}1"
+    fstype: ext3
+    state: unmounted
+
+- name: Remove the extra storage from /etc/fstab
+  lineinfile:
+    dest: /etc/fstab
+    regexp: "^/dev/{{ storage_dev }}1"
+    state: absent
+
+- name: Get storage volume size
+  set_fact:
+    storage_volume_size: "{{ ansible_devices[storage_dev]['size'] | replace(' GB','') }}"
+
+# Only store LXC containers in the storage volume if we don't have much storage.
+- name: Determine if we should use the storage for LXC containers
+  set_fact:
+    storage_purpose: lxc_only
+  when: "{{ storage_volume_size }} < {{ storage_dev_min_size }}"
+
+# Store both LXC containers and cinder volumes if we have lots of storage
+- name: Determine if we should use the storage for swift and cinder
+  set_fact:
+    storage_purpose: lxc_and_cinder
+  when: "{{ storage_volume_size }} > {{ storage_dev_min_size }}"
+
+- name: Wipe the partition table on the extra storage volume
+  command: "dd if=/dev/zero of=/dev/{{ storage_dev }} bs=512 count=1 conv=notrunc"
+
+- name: Configure LXC container partition (if applicable)
+  command: "{{ item }}"
+  with_items:
+    - "parted --script /dev/{{ storage_dev }} mklabel gpt"
+    - "parted --script /dev/{{ storage_dev }} mkpart lxc ext4 0% 100%"
+  when: storage_purpose == 'lxc_only'
+
+- name: Make filesystem on LXC partition
+  filesystem:
+    dev: "/dev/{{ storage_dev }}1"
+    fstype: ext4
+    force: yes
+  when: storage_purpose == 'lxc_only'
+
+- name: Mount LXC partition and add to /etc/fstab
+  mount:
+    name: /var/lib/lxc
+    src: "/dev/{{ storage_dev }}1"
+    fstype: ext4
+    opts: "noatime,defaults"
+    passno: 0
+    dump: 0
+    state: mounted
+  when: storage_purpose == 'lxc_only'
+
+- name: Configure volume groups on the storage volume for LXC and cinder
+  command: "{{ item }}"
+  with_items:
+    - "parted --script /dev/{{ storage_dev }} mklabel gpt"
+    - "parted --align optimal --script /dev/{{ storage_dev }} mkpart lxc 0% 80%"
+    - "parted --align optimal --script /dev/{{ storage_dev }} mkpart cinder 80% 100%"
+    - "pvcreate -ff -y /dev/{{ storage_dev }}1"
+    - "pvcreate -ff -y /dev/{{ storage_dev }}2"
+    - "vgcreate lxc /dev/{{ storage_dev }}1"
+    - "vgcreate cinder-volumes /dev/{{ storage_dev }}2"
+  when: storage_purpose == 'lxc_and_cinder'

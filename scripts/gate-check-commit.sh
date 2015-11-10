@@ -55,44 +55,28 @@ ln -sf /openstack/log $(dirname ${0})/../logs
 mkdir -p /openstack/log/ansible-logging
 sed -i '/\[defaults\]/a log_path = /openstack/log/ansible-logging/ansible.log' $(dirname ${0})/../playbooks/ansible.cfg
 
-# Adjust settings based on the Cloud Provider info in OpenStack-CI
-if [ -f /etc/nodepool/provider -a -s /etc/nodepool/provider ]; then
-  source /etc/nodepool/provider
-
-  if [[ ${NODEPOOL_PROVIDER} == "rax"* ]]; then
-
-    # Set the Ubuntu Repository to the RAX Mirror
-    export UBUNTU_REPO="http://mirror.rackspace.com/ubuntu"
-    export UBUNTU_SEC_REPO="${UBUNTU_REPO}"
-
-  elif [[ ${NODEPOOL_PROVIDER} == "hpcloud"* ]]; then
-
-    # Set the Ubuntu Repository to the HP Cloud Mirror
-    export UBUNTU_REPO="http://${NODEPOOL_AZ}.clouds.archive.ubuntu.com/ubuntu"
-    export UBUNTU_SEC_REPO="${UBUNTU_REPO}"
-
-  fi
-
-  # Reduce container affinities as Liberty appears to consume
-  #  a greater volume of resources, causing greater numbers
-  #  of failures with the default affinities.
-  for container_type in rabbit_mq repo horizon keystone; do
-    export "NUM_${container_type}_CONTAINER=1"
-  done
-
-fi
-
 # Enable detailed task profiling
 sed -i '/\[defaults\]/a callback_plugins = plugins/callbacks' $(dirname ${0})/../playbooks/ansible.cfg
-
-# Bootstrap an AIO setup if required
-if [ "${BOOTSTRAP_AIO}" == "yes" ]; then
-  source $(dirname ${0})/bootstrap-aio.sh
-fi
 
 # Bootstrap ansible if required
 if [ "${BOOTSTRAP_ANSIBLE}" == "yes" ]; then
   source $(dirname ${0})/bootstrap-ansible.sh
+fi
+
+# Disable the python output buffering so that jenkins gets the output properly
+export PYTHONUNBUFFERED=1
+
+# Bootstrap an AIO setup if required
+if [ "${BOOTSTRAP_AIO}" == "yes" ]; then
+  source $(dirname ${0})/bootstrap-aio.sh
+
+  # Clear out the ansible facts that we generated from the AIO run
+  rm -fv /etc/openstack_deploy/ansible_facts/localhost
+
+  # Verify that ssh is up
+  ssh-keyscan localhost
+  MGMT_IP=$(ip -4 -o addr show dev br-mgmt | grep -oP 'inet \K[0-9\.]*')
+  ssh-keyscan $MGMT_IP
 fi
 
 # Enable debug logging for all services to make failure debugging easier
@@ -110,22 +94,10 @@ echo "lxc_net_dhcp_range: 10.255.255.2,10.255.255.253" | tee -a /etc/openstack_d
 # The defaults cause tempest failures in OpenStack CI due to resource constraints
 echo "keystone_wsgi_processes: 4" | tee -a /etc/openstack_deploy/user_variables.yml
 
-# Disable the python output buffering so that jenkins gets the output properly
-export PYTHONUNBUFFERED=1
-
 # Run the ansible playbooks if required
 if [ "${RUN_PLAYBOOKS}" == "yes" ]; then
-  # Set-up our tiny awk script.
-  strip_debug="
-    !/(^[ 0-9|:.-]+<[0-9.]|localhost+>)|Extracting/ {
-      gsub(/{.*/, \"\");
-      gsub(/\\n.*/, \"\");
-      gsub(/\=\>.*/, \"\");
-      print
-    }
-  "
   set -o pipefail
-  bash $(dirname ${0})/run-playbooks.sh | awk "${strip_debug}"
+  bash $(dirname ${0})/run-playbooks.sh
   set +o pipefail
 fi
 

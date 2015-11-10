@@ -1,0 +1,58 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Lower swap size to 4GB if our host has less than 8GB physical RAM
+  set_fact:
+    swap_size: 4
+  when: ansible_memory_mb['real']['total'] < 8*1024
+  tags: swap
+
+- name: Check if swap file already exists
+  stat:
+    path: /opt/swap.img
+    get_md5: no
+  register: swap_check
+  tags: swap
+
+- name: Create swap file
+  command: "fallocate -l {{ swap_size }}G /opt/swap.img"
+  when: swap_check.stat.exists == False
+  tags: swap
+
+- name: Set swap file permissions to 0600
+  file:
+    path: /opt/swap.img
+    mode: 0600
+  when: swap_check.stat.exists == False
+
+- name: Turn the file into swap space
+  command: mkswap /opt/swap.img
+  when: swap_check.stat.exists == False
+
+- name: Add swap file to /etc/fstab
+  mount:
+    name: none
+    src: /opt/swap.img
+    fstype: swap
+    opts: sw
+    passno: 0
+    dump: 0
+    state: present
+  when: swap_check.stat.exists == False
+  tags: swap
+
+- name: Bring swap file online
+  command: swapon /opt/swap.img
+  when: swap_check.stat.exists == False

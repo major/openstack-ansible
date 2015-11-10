@@ -1,0 +1,118 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Install ceilometer packages
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - mongodb-clients
+    - mongodb-server
+    - python-pymongo
+
+- name: Ensure mongodb binds to the management IP address
+  lineinfile:
+    dest: /etc/mongodb.conf
+    regexp: "^(#)?bind_ip"
+    line: "bind_ip = {{ mongo_host }}"
+
+- name: Enable smallfiles option in mongodb
+  lineinfile:
+    dest: /etc/mongodb.conf
+    regexp: "^(#)?smallfiles"
+    line: "smallfiles = true"
+
+- name: Restart mongodb
+  service:
+    name: mongodb
+    state: restarted
+
+- name: Wait for mongodb to come back online after the restart
+  wait_for:
+    host: "{{ mongo_host }}"
+    port: 27017
+    delay: 5
+    timeout: 30
+
+- name: Test mongodb connectivity
+  command: "mongo --host {{ mongo_host }} --eval ' '"
+  changed_when: False
+
+- name: Add ceilometer database user
+  mongodb_user:
+    login_host: "{{ mongo_host }}"
+    database: ceilometer
+    name: ceilometer
+    password: ceilometer
+    roles: 'readWrite,dbAdmin'
+    state: present
+
+- name: Add aodh database user
+  mongodb_user:
+    login_host: "{{ mongo_host }}"
+    database: aodh
+    name: aodh
+    password: aodh
+    roles: 'readWrite,dbAdmin'
+    state: present
+
+- name: Set ceilometer mongodb password in configuration yml
+  lineinfile:
+    dest: /etc/openstack_deploy/user_secrets.yml
+    regexp: "^(#)?ceilometer_container_db_password:"
+    line: "ceilometer_container_db_password: ceilometer"
+
+- name: Set aodh mongodb password in configuration yml
+  lineinfile:
+    dest: /etc/openstack_deploy/user_secrets.yml
+    regexp: "^(#)?aodh_container_db_password:"
+    line: "aodh_container_db_password: aodh"
+
+- name: Set ceilometer mongodb IP address in configuration yml
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    regexp: "^(#)?ceilometer_db_ip:"
+    line: "ceilometer_db_ip: {{ mongo_host }}"
+
+- name: Set aodh mongodb IP address in configuration yml
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    regexp: "^(#)?aodh_db_ip:"
+    line: "aodh_db_ip: {{ mongo_host }}"
+
+- name: Configure ceilometer for swift (if swift will be installed)
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    regexp: "^(#)?swift_ceilometer_enabled:"
+    line: "swift_ceilometer_enabled: true"
+  when: deploy_swift | bool
+
+- name: Configure ceilometer for OpenStack services (if they will be installed)
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    regexp: "^(#)?{{ item }}_ceilometer_enabled:"
+    line: "{{ item }}_ceilometer_enabled: True"
+  with_items:
+    - cinder
+    - glance
+    - heat
+    - nova
+  when: deploy_openstack | bool
+
+- name: Enable tempest for ceilometer
+  lineinfile:
+    dest: /etc/openstack_deploy/user_variables.yml
+    regexp: "^(#)?tempest_service_available_ceilometer:"
+    line: "tempest_service_available_ceilometer: true"

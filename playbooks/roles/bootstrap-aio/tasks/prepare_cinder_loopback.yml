@@ -1,0 +1,44 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Create loopback file for cinder
+  command: "truncate -s {{ cinder_loopback_size * 1024**3 }} /opt/cinder.img"
+
+- name: Get a loopback device for cinder file
+  command: losetup -f
+  register: cinder_losetup
+
+- name: Set fact for cinder device
+  set_fact:
+    cinder_loop_device: "{{ cinder_losetup.stdout }}"
+
+- name: Create the loopback device
+  command: "losetup {{ cinder_loop_device }} /opt/cinder.img"
+
+- name: Create loopback devices at boot time
+  lineinfile:
+    dest: /etc/rc.local
+    line: "losetup $(losetup -f) /opt/cinder.img"
+
+- name: Make LVM physical volume on the cinder device
+  command: "{{ item }}"
+  with_items:
+    - "pvcreate {{ cinder_loop_device }}"
+    - "pvscan"
+
+- name: Add cinder-volumes volume group
+  lvg:
+    vg: cinder-volumes
+    pvs: "{{ cinder_loop_device }}"

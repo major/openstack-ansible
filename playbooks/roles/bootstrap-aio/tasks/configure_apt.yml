@@ -1,0 +1,71 @@
+---
+# Copyright 2015, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Update apt-cache
+  apt:
+    update_cache: yes
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Install software over HTTPS using apt (Ubuntu only)
+  apt:
+    name: apt-transport-https
+    state: present
+  when: ansible_pkg_mgr == 'apt'
+
+- name: Check to see if we're running in a gate job at Rackspace
+  command: "grep 'NODEPOOL_PROVIDER=rax.*' /etc/nodepool/provider"
+  when: gate_job | bool
+  failed_when: False
+  register: rackspace_check
+
+- name: Determine which Rackpace region we're building in (if applicable)
+  command: "grep -oP 'NODEPOOL_REGION=\\K(.*)$' /etc/nodepool/provider"
+  register: rackspace_region
+  when: gate_job | bool and rackspace_check is defined and rackspace_check.rc == 0
+
+- name: Adjust apt mirror facts for Rackspace region
+  set_fact:
+    ubuntu_repo: "http://{{ rackspace_region.stdout | lower }}.mirror.rackspace.com/ubuntu/"
+    ubuntu_security_repo: "http://{{ rackspace_region.stdout | lower }}.mirror.rackspace.com/ubuntu/"
+  when: gate_job | bool and rackspace_region is defined and rackspace_region.rc == 0
+
+- name: Check to see if we're running a gate job on HP Cloud
+  command: "grep 'NODEPOOL_PROVIDER=hpcloud.*' /etc/nodepool/provider"
+  when: gate_job | bool
+  failed_when: False
+  register: hpcloud_check
+
+- name: Determine which HP Cloud AZ we're building in (if applicable)
+  command: "grep -oP 'NODEPOOL_AZ=\\K(.*)$' /etc/nodepool/provider"
+  register: hpcloud_az
+  when: gate_job | bool and hpcloud_check is defined and hpcloud_check.rc == 0
+
+# There's not an Ubuntu security mirror at HP
+- name: Adjust apt mirror facts for HP Cloud
+  set_fact:
+    ubuntu_repo: "http://{{ hpcloud_az.stdout | lower }}.clouds.archive.ubuntu.com/ubuntu"
+  when: gate_job | bool and hpcloud_az is defined and hpcloud_az.rc == 0
+
+- name: Configure apt's sources.list (Ubuntu only)
+  template:
+    src: sources.list.j2
+    dest: /etc/apt/sources.list
+    backup: yes
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Update apt-cache
+  apt:
+    update_cache: yes
+  when: ansible_pkg_mgr == 'apt'
