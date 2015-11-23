@@ -85,6 +85,10 @@ fi
 # Enable detailed task profiling
 sed -i '/\[defaults\]/a callback_plugins = plugins/callbacks' $(dirname ${0})/../playbooks/ansible.cfg
 
+# Switch the transport type to 'paramiko'. This decreases ssh errors in gate
+# jobs without creating a noticeable performance penalty.
+sed -i '/\[defaults\]/a transport = paramiko' $(dirname ${0})/../playbooks/ansible.cfg
+
 # Bootstrap an AIO setup if required
 if [ "${BOOTSTRAP_AIO}" == "yes" ]; then
   source $(dirname ${0})/bootstrap-aio.sh
