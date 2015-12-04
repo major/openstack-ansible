@@ -143,9 +143,10 @@ pushd "playbooks"
                           -a 'find  /var/www/repo/os-releases -type l' \
                           -t "${COMMAND_LOGS}/repo_data"
 
-    install_bits galera-install.yml
-    install_bits rabbitmq-install.yml
-    install_bits utility-install.yml
+    install_bits galera-install.yml &
+    install_bits rabbitmq-install.yml &
+    install_bits utility-install.yml &
+    wait
 
     if [ "${DEPLOY_LOGGING}" == "yes" ]; then
       install_bits rsyslog-install.yml
