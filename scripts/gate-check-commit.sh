@@ -59,19 +59,42 @@ sed -i '/\[defaults\]/a log_path = /openstack/log/ansible-logging/ansible.log' $
 if [ -f /etc/nodepool/provider -a -s /etc/nodepool/provider ]; then
   source /etc/nodepool/provider
 
-  if [[ ${NODEPOOL_PROVIDER} == "rax"* ]]; then
-
-    # Set the Ubuntu Repository to the RAX Mirror
-    export UBUNTU_REPO="http://mirror.rackspace.com/ubuntu"
-    export UBUNTU_SEC_REPO="${UBUNTU_REPO}"
-
-  elif [[ ${NODEPOOL_PROVIDER} == "hpcloud"* ]]; then
-
-    # Set the Ubuntu Repository to the HP Cloud Mirror
-    export UBUNTU_REPO="http://${NODEPOOL_AZ}.clouds.archive.ubuntu.com/ubuntu"
-    export UBUNTU_SEC_REPO="${UBUNTU_REPO}"
-
-  fi
+  # Get the fastest possible Linux mirror depending on the datacenter where the
+  # tests are running.
+  case ${NODEPOOL_PROVIDER} in
+  "rax-dfw"*)
+      export UBUNTU_REPO="http://dfw.mirror.rackspace.com/ubuntu"
+      export UBUNTU_SEC_REPO="${UBUNTU_REPO}"
+      ;;
+  "rax-ord"*)
+      export UBUNTU_REPO="http://ord.mirror.rackspace.com/ubuntu"
+      export UBUNTU_SEC_REPO="${UBUNTU_REPO}"
+      ;;
+  "rax-iad"*)
+      export UBUNTU_REPO="http://iad.mirror.rackspace.com/ubuntu"
+      export UBUNTU_SEC_REPO="${UBUNTU_REPO}"
+      ;;
+  "hpcloud"*)
+      export UBUNTU_REPO="http://${NODEPOOL_AZ}.clouds.archive.ubuntu.com/ubuntu"
+      export UBUNTU_SEC_REPO="${UBUNTU_REPO}"
+      ;;
+  "ovh-gra1"*)
+      export UBUNTU_REPO="http://ubuntu.mirrors.ovh.net/ubuntu"
+      export UBUNTU_SEC_REPO="${UBUNTU_REPO}"
+      ;;
+  "ovh-bhs1"*)
+      export UBUNTU_REPO="http://ubuntu.bhs.mirrors.ovh.net/ubuntu"
+      export UBUNTU_SEC_REPO="${UBUNTU_REPO}"
+      ;;
+  "bluebox-sjc1"*)
+      export UBUNTU_REPO="http://ord.mirror.rackspace.com/ubuntu"
+      export UBUNTU_SEC_REPO="${UBUNTU_REPO}"
+      ;;
+  "internap-nyj01"*)
+      export UBUNTU_REPO="http://iad.mirror.rackspace.com/ubuntu"
+      export UBUNTU_SEC_REPO="${UBUNTU_REPO}"
+      ;;
+  esac
 
   # Reduce container affinities as Liberty appears to consume
   #  a greater volume of resources, causing greater numbers
