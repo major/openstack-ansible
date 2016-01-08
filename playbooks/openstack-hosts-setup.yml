@@ -19,3 +19,4 @@
   user: root
   roles:
     - { role: "openstack_hosts", tags: [ "openstack-hosts-setup" ] }
+    - { role: "openstack-ansible-security", when: apply_security_hardening | bool }

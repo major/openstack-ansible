@@ -28,6 +28,7 @@ DEPLOY_CEILOMETER=${DEPLOY_CEILOMETER:-"yes"}
 DEPLOY_TEMPEST=${DEPLOY_TEMPEST:-"yes"}
 COMMAND_LOGS=${COMMAND_LOGS:-"/openstack/log/ansible_cmd_logs/"}
 ADD_NEUTRON_AGENT_CHECKSUM_RULE=${ADD_NEUTRON_AGENT_CHECKSUM_RULE:-"yes"}
+APPLY_SECURITY_HARDENING=${APPLY_SECURITY_HARDENING:-'no'}
 
 
 ## Functions -----------------------------------------------------------------
