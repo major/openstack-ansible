@@ -94,6 +94,10 @@ neutron_fwaas_git_repo: https://git.openstack.org/openstack/neutron-fwaas
 neutron_fwaas_git_install_branch: cb0093d185a97cafc320bd64d9b45dc737cdfdb2 # HEAD of "master" as of 17.01.2016
 neutron_fwaas_git_dest: "/opt/neutron_fwaas_{{ neutron_fwaas_git_install_branch | replace('/', '_') }}"
 
+# Octavia enables LBaaSv2 in neutron
+octavia_git_repo: https://git.openstack.org/openstack/octavia
+octavia_git_install_branch: 79179de31094782c03e21ca51fb179fd862f6c58 # HEAD of "master" as of 28.01.2016
+octavia_git_dest: "/opt/octavia_{{ octavia_git_install_branch | replace('/', '_') }}"
 
 ## Nova service
 nova_git_repo: https://git.openstack.org/openstack/nova

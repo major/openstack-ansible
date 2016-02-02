@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-- name: Create DB for service
+- name: Create DB for neutron service
   mysql_db:
     login_user: "{{ galera_root_user }}"
     login_password: "{{ galera_root_password }}"

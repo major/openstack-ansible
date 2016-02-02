@@ -54,6 +54,19 @@
   tags:
     - neutron-dirs
 
+- name: Create octavia (LBaaSv2) directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ item.owner|default(neutron_system_user_name) }}"
+    group: "{{ item.group|default(neutron_system_group_name) }}"
+  when: neutron_lbaasv2 | bool
+  with_items:
+    - /etc/octavia/
+    - /var/log/octavia/
+  tags:
+    - octavia-dirs
+
 - name: Create neutron venv dir
   file:
     path: "{{ item.path }}"

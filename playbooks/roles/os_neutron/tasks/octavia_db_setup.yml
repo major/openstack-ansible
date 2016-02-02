@@ -1,0 +1,56 @@
+---
+# Copyright 2016, Rackspace US, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+- name: Create DB for octavia service
+  mysql_db:
+    login_user: "{{ galera_root_user }}"
+    login_password: "{{ galera_root_password }}"
+    login_host: "{{ octavia_galera_address }}"
+    name: "{{ octavia_galera_database }}"
+    state: "present"
+  tags:
+    - octavia-db-setup
+
+- name: Grant access to the DB for the octavia service
+  mysql_user:
+    login_user: "{{ galera_root_user }}"
+    login_password: "{{ galera_root_password }}"
+    login_host: "{{ octavia_galera_address }}"
+    name: "{{ octavia_galera_user }}"
+    password: "{{ octavia_container_mysql_password }}"
+    host: "{{ item }}"
+    state: "present"
+    priv: "{{ octavia_galera_database }}.*:ALL"
+  with_items:
+    - "localhost"
+    - "%"
+  tags:
+    - octavia-db-setup
+
+- name: Add octavia database URI to alembic.ini
+  lineinfile:
+    dest: "{{ neutron_venv_path }}/lib/python2.7/site-packages/octavia/db/migration/alembic.ini"
+    regexp: "^sqlalchemy.url"
+    line: "sqlalchemy.url = mysql+pymysql://{{ octavia_galera_user }}:{{ octavia_container_mysql_password }}@{{ octavia_galera_address }}/{{ octavia_galera_database }}?charset=utf8"
+  tags:
+    - octavia-db-setup
+
+- name: Run octavia database migrations with alembic
+  command: |
+      {{ neutron_venv_bin }}/alembic
+          -c {{ neutron_venv_path }}/lib/python2.7/site-packages/octavia/db/migration/alembic.ini
+          upgrade head
+  tags:
+    - octavia-db-setup

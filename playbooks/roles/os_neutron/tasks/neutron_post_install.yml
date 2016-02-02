@@ -159,3 +159,12 @@
     - not neutron_venv_enabled | bool
   tags:
     - neutron-command-bin
+
+- name: Deploy Octavia configuration file
+  template:
+    src: octavia.conf.j2
+    dest: /etc/octavia/octavia.conf
+  when:
+    - neutron_lbaasv2 | bool
+  tags:
+    - octavia-config

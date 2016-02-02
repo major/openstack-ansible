@@ -157,7 +157,11 @@ pool_timeout = {{ neutron_db_pool_timeout }}
 
 # Service providers
 [service_providers]
+{% if neutron_lbaas | bool %}
 service_provider = LOADBALANCER:Haproxy:neutron_lbaas.services.loadbalancer.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver:default
+{% elif neutron_lbaasv2 | bool %}
+service_provider = LOADBALANCERV2:Octavia:neutron_lbaas.drivers.octavia.driver.OctaviaDriver:default
+{% endif %}
 #service_provider = VPN:openswan:neutron.services.vpn.service_drivers.ipsec.IPsecVPNDriver:default
 
 {% endif %}
@@ -180,3 +184,14 @@ rabbit_use_ssl = {{ rabbitmq_use_ssl }}
 # Concurrency (locking mechanisms)
 [oslo_concurrency]
 lock_path = /var/lock/neutron
+
+{% if neutron_lbaasv2 | bool %}
+# Service authentication for neutron_lbaasv2
+[service_auth]
+auth_url = {{ keystone_service_internaluri }}/v2.0
+admin_tenant_name = admin
+admin_user = admin
+admin_password = {{ keystone_auth_admin_password }}
+auth_version = 2
+
+{% endif %}

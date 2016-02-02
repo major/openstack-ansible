@@ -22,6 +22,10 @@
   when: >
     inventory_hostname == groups[neutron_services['neutron-server']['group']][0]
 
+- include: octavia_db_setup.yml
+  when: >
+    inventory_hostname == groups[neutron_services['neutron-server']['group']][0]
+
 - include: neutron_service_setup.yml
   when: >
     inventory_hostname == groups['neutron_all'][0]
