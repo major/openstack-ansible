@@ -1,0 +1,4 @@
+---
+deprecations:
+  - The ``use_syslog`` configuration option was removed after being
+    deprecated and removed by the Heat project.
