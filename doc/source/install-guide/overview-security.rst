@@ -59,6 +59,17 @@ database(s) that they need to query.
 
 .. _principle of least privilege: https://en.wikipedia.org/wiki/Principle_of_least_privilege
 
+Host security hardening
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Deployers can apply security hardening to OpenStack infrastructure and compute
+hosts using the openstack-ansible-security role. The purpose of the role is to
+apply as many security configurations as possible without disrupting the
+operation of an OpenStack deployment.
+
+Refer to the documentation on :ref:`security_hardening` for more information
+on the role and how to enable it in OpenStack-Ansible.
+
 --------------
 
 .. include:: navigation.txt
