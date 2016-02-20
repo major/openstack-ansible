@@ -39,3 +39,13 @@
   tags:
     - keystone-ldap-domain-config
 
+# See bug 1547542 for more details
+- name: Remove Keystone Default domain configuration file if not needed
+  file:
+    path: "{{ keystone_ldap_domain_config_dir }}/keystone.Default.conf"
+    state: absent
+  when: "'Default' not in keystone_ldap"
+  notify:
+    - Restart Apache
+  tags:
+    - keystone-ldap-domain-config
