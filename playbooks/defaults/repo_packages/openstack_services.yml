@@ -83,7 +83,7 @@ neutron_git_install_branch: 37856aa722f38fa34e5a2a9dd18aee14d28a3a17 # HEAD of "
 neutron_git_dest: "/opt/neutron_{{ neutron_git_install_branch | replace('/', '_') }}"
 
 neutron_lbaas_git_repo: https://git.openstack.org/openstack/neutron-lbaas
-neutron_lbaas_git_install_branch: 3aeb1cf87bc21a07c3f573dee4b3931f5fd9674b # HEAD of "stable/liberty" as of 18.03.2016
+neutron_lbaas_git_install_branch: 94ffa50d8a7f4a8c592317017a47672cff785064 # HEAD of "stable/liberty" as of 29.03.2016
 neutron_lbaas_git_dest: "/opt/neutron_lbaas_{{ neutron_lbaas_git_install_branch | replace('/', '_') }}"
 
 neutron_vpnaas_git_repo: https://git.openstack.org/openstack/neutron-vpnaas
