@@ -73,8 +73,11 @@ development) build it is usually best to checkout the latest tagged version.
        $ # List all existing tags.
        $ git tag -l
 
+       $ # List the latest available tagged release.
+       $ git checkout origin/stable/mitaka; git describe --abbrev=0 --tags
+
        $ # Checkout the latest tag from the previous command.
-       $ git checkout 12.0.0
+       $ git checkout 13.0.0
 
 By default the scripts deploy all OpenStack services with sensible defaults
 for the purpose of a gate check, development or testing system.
